@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Claude Code local settings
+.claude/
+
+# Logs
+firebase-debug.log
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Secrets / local env
+.env
+*.env.local
+
+# IDE
+.vscode/settings.json

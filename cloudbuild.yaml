@@ -1,0 +1,56 @@
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/chimera/fsu4:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/chimera/fsu4:latest'
+      - '.'
+
+  # Push both tags
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/chimera/fsu4:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/chimera/fsu4:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'fsu4'
+      - '--image=gcr.io/chimera/fsu4:$COMMIT_SHA'
+      - '--region=europe-west2'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--min-instances=1'
+      - '--max-instances=10'
+      - '--timeout=300'
+      - '--concurrency=80'
+      - '--service-account=fsu4@chimera.iam.gserviceaccount.com'
+      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=chimera'
+      - '--no-traffic'
+
+  # Migrate all traffic to new revision
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'services'
+      - 'update-traffic'
+      - 'fsu4'
+      - '--region=europe-west2'
+      - '--to-latest'
+
+images:
+  - 'gcr.io/chimera/fsu4:$COMMIT_SHA'
+  - 'gcr.io/chimera/fsu4:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
