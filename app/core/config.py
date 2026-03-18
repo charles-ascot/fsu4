@@ -3,7 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import Optional
 
-GCP_PROJECT = "chimera"
+GCP_PROJECT = "chimera-v4"
 GCP_REGION = "europe-west2"
 CLOUD_RUN_SERVICE = "fsu4"
 FSU_NAME = "fsu4"
@@ -14,7 +14,7 @@ GMAIL_ADDRESS = "chimera.data.in@gmail.com"
 PUBSUB_TOPIC = "fsu4-trigger"
 PUBSUB_SUBSCRIPTION = "fsu4-sub"
 
-GCS_BUCKET = "fsu4-raw"
+GCS_BUCKET = "chimera-ops-email-raw"
 
 FIRESTORE_COLLECTION = "fsu4-intelligence"
 FIRESTORE_SOURCES_COLLECTION = "fsu4-sources"
