@@ -202,15 +202,8 @@ gcloud pubsub topics add-iam-policy-binding fsu4-trigger \
 ### 5.1 GitHub repository
 **Where: GitHub.com + VS Code (your normal workflow)**
 
-- [ ] Create a new **private** GitHub repository — suggested name: `fsu4` or `chimera-fsu4`
-- [ ] In VS Code, open the project at `/Users/charles/Projects/fsu4`
-- [ ] Open the VS Code terminal and run:
-  ```bash
-  git remote add origin git@github.com:YOUR-ORG/fsu4.git
-  git push -u origin main
-  ```
-  > If the repo already has a remote, replace `add origin` with `set-url origin`
-- [ ] Confirm in GitHub that all files are present and **no secrets are in the repo**
+- ✅ GitHub repository created: `https://github.com/charles-ascot/fsu4` (private)
+- ✅ Code pushed to `main` — all files present, no secrets in repo
 
 ### 5.2 Connect Cloud Build to GitHub
 **Where: GCP Console → `chimera-v4` → Cloud Build → Triggers**
