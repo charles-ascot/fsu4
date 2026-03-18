@@ -13,14 +13,14 @@ def _get_client() -> secretmanager.SecretManagerServiceClient:
     return _client
 
 
-def get_secret(secret_id: str, project_id: str = "chimera", version: str = "latest") -> str:
+def get_secret(secret_id: str, project_id: str = "chimera-v4", version: str = "latest") -> str:
     client = _get_client()
     name = f"projects/{project_id}/secrets/{secret_id}/versions/{version}"
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("utf-8")
 
 
-def get_secret_json(secret_id: str, project_id: str = "chimera", version: str = "latest") -> dict:
+def get_secret_json(secret_id: str, project_id: str = "chimera-v4", version: str = "latest") -> dict:
     return json.loads(get_secret(secret_id, project_id, version))
 
 
