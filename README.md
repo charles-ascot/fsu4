@@ -1,10 +1,67 @@
 # FSU4 — Chimera Email Intelligence Service
-**Version 1.0.0** · Cloud Run · `chimera-v4` · `europe-west2`
 
-Transforms inbound emails at `chimera.data.in@gmail.com` into structured intelligence records using Gmail API → Pub/Sub → Claude AI → Firestore + GCS.
+**Version 1.0.0** · Python 3.12 · FastAPI · Cloud Run · `chimera-v4` · `europe-west2`
 
-**Live URL:** `https://fsu4-950990732577.europe-west2.run.app`
-**Management UI:** `https://fsu4.thync.online`
+Transforms inbound emails at `chimera.data.in@gmail.com` into structured intelligence records via Gmail API → Pub/Sub → Claude AI → Firestore + GCS.
+
+| | |
+|---|---|
+| **API** | `https://fsu4-950990732577.europe-west2.run.app` |
+| **Management UI** | `https://fsu4.thync.online` |
+| **GitHub** | `https://github.com/charles-ascot/fsu4` |
+| **GCP Project** | `chimera-v4` |
+
+---
+
+## Quick Start
+
+```bash
+# Health check
+curl https://fsu4-950990732577.europe-west2.run.app/health
+
+# Query registry (authenticated)
+curl -H "X-Chimera-API-Key: YOUR_KEY" \
+  https://fsu4-950990732577.europe-west2.run.app/v1/registry?limit=10
+
+# Manual ingest
+curl -X POST \
+  -H "X-Chimera-API-Key: YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"message_id":"GMAIL_MESSAGE_ID"}' \
+  https://fsu4-950990732577.europe-west2.run.app/v1/ingest/manual
+```
+
+---
+
+## Architecture
+
+```
+chimera.data.in@gmail.com
+        │  (new email)
+        ▼
+   Gmail API
+        │  (push notification)
+        ▼
+   Pub/Sub topic: fsu4-trigger
+        │  (HTTP push)
+        ▼
+   Cloud Run: fsu4  ──► Claude AI (claude-sonnet-4-20250514)
+        │                     │
+        ▼                     ▼
+   Firestore              GCS Bucket
+   fsu4-intelligence   chimera-ops-email-raw
+```
+
+**Processing pipeline per email:**
+1. Pub/Sub push → decode historyId → Gmail History API → message IDs
+2. Fetch full message from Gmail API
+3. Parse headers, body text/HTML, attachments
+4. Skip checks (ignore_senders, ignore_subjects)
+5. Store raw artefacts to GCS
+6. Extract text from attachments (PDF, DOCX, images via OCR, audio via STT)
+7. AI tagging via Claude — title, summary, topics, intent, urgency, relevancy_score
+8. Store processed record to GCS
+9. Write intelligence record to Firestore
 
 ---
 
@@ -13,57 +70,188 @@ Transforms inbound emails at `chimera.data.in@gmail.com` into structured intelli
 | Resource | Name |
 |----------|------|
 | GCP project | `chimera-v4` |
-| Cloud Run service | `fsu4` |
 | Region | `europe-west2` |
+| Cloud Run service | `fsu4` |
 | Service account | `fsu4-runner@chimera-v4.iam.gserviceaccount.com` |
 | GCS bucket | `chimera-ops-email-raw` |
 | Firestore collection | `fsu4-intelligence` |
 | Firestore sources collection | `fsu4-sources` |
+| Firestore config doc | `chimera-fsu-config/fsu4-config` |
+| Firestore system doc | `chimera-fsu-system/gmail-watch` |
 | Pub/Sub topic | `fsu4-trigger` |
 | Pub/Sub subscription | `fsu4-sub` |
 | Gmail address | `chimera.data.in@gmail.com` |
 | Claude model | `claude-sonnet-4-20250514` |
-| GitHub repo | `https://github.com/charles-ascot/fsu4` |
+
+---
+
+## Secrets (GCP Secret Manager — `chimera-v4`)
+
+| Secret ID | Description |
+|-----------|-------------|
+| `anthropic-api-key` | Anthropic API key (`sk-ant-...`) |
+| `chimera-api-key` | API key sent as `X-Chimera-API-Key` header by all clients |
+| `gmail-oauth-credentials` | `{"client_id":"...","client_secret":"...","token_uri":"https://oauth2.googleapis.com/token"}` |
+| `gmail-token` | `{"token":"...","refresh_token":"...","token_uri":"https://oauth2.googleapis.com/token"}` |
+
+### Regenerating Gmail OAuth token
+
+1. GCP Console → `chimera-v4` → APIs & Services → Credentials → OAuth client **FSU4 - Chimera Email Ingest**
+2. Copy `client_id` and `client_secret`
+3. Open [OAuth 2.0 Playground](https://developers.google.com/oauthplayground)
+   - Gear icon → **Use your own OAuth credentials** → enter `client_id` and `client_secret`
+   - Scope: `https://www.googleapis.com/auth/gmail.modify`
+   - Authorise → sign in as `chimera.data.in@gmail.com`
+   - Exchange authorisation code for tokens
+4. Update secrets `gmail-oauth-credentials` and `gmail-token` in Secret Manager
 
 ---
 
 ## CI/CD
 
-Push to `main` → Cloud Run auto-deploys via the **Connect repo** integration in GCP Console → Cloud Run → Connect repo.
+Push to `main` → Cloud Run auto-deploys via the **Connect repo** integration.
 
-No manual deploy steps required.
+GCP Console → Cloud Run → `fsu4` → **Edit & Deploy** → Source tab shows connected repo.
 
----
-
-## Secrets (GCP Secret Manager — project: `chimera-v4`)
-
-| Secret ID | Value |
-|-----------|-------|
-| `anthropic-api-key` | Anthropic API key (`sk-ant-...`) |
-| `chimera-api-key` | Random 32-char string — sent as `X-Chimera-API-Key` header on all authenticated calls |
-| `gmail-oauth-credentials` | `{"client_id":"...","client_secret":"...","token_uri":"https://oauth2.googleapis.com/token"}` |
-| `gmail-token` | `{"token":"...","refresh_token":"...","token_uri":"https://oauth2.googleapis.com/token"}` |
-
-### Generating Gmail OAuth credentials
-
-1. GCP Console → `chimera-v4` → APIs & Services → Credentials → **Create OAuth 2.0 Client ID**
-   - Application type: **Web application**
-   - Authorised redirect URI: `https://developers.google.com/oauthplayground`
-2. Note the `client_id` and `client_secret`
-3. Go to [OAuth 2.0 Playground](https://developers.google.com/oauthplayground)
-   - Gear icon → check **Use your own OAuth credentials** → enter `client_id` and `client_secret`
-   - Scope: `https://www.googleapis.com/auth/gmail.modify`
-   - Authorise APIs → sign in as `chimera.data.in@gmail.com`
-   - Exchange authorisation code for tokens → copy `access_token` and `refresh_token`
-4. Store in Secret Manager as shown above
+No `cloudbuild.yaml` or manual deploy steps required.
 
 ---
 
-## GCP Infrastructure
+## API Reference
 
-All of the below is already provisioned in `chimera-v4`. This section documents what exists and how to recreate it if needed.
+### Authentication
 
-### APIs enabled
+All protected endpoints require:
+```
+X-Chimera-API-Key: <chimera-api-key secret value>
+```
+
+### Base URL
+```
+https://fsu4-950990732577.europe-west2.run.app
+```
+
+### Endpoints
+
+#### System — no auth required
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Liveness probe → `{"status":"ok"}` |
+| GET | `/status` | Firestore connectivity + registry stats |
+| GET | `/version` | Version and build info |
+
+#### Ingest
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/v1/ingest/pubsub-push` | None | Pub/Sub push receiver — called by GCP only |
+| POST | `/v1/ingest/manual` | Yes | Process a specific Gmail message ID |
+| POST | `/v1/ingest/reprocess/{id}` | Yes | Re-run AI tagging on existing record |
+| GET | `/v1/ingest/queue` | Yes | View records in pending status |
+
+#### Registry
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/v1/registry` | Yes | Query records — filterable by intent, urgency, sender, topic, relevancy |
+| GET | `/v1/registry/{record_id}` | Yes | Fetch a single record |
+| GET | `/v1/registry/metrics` | Yes | Processing statistics |
+| POST | `/v1/registry/agent/query` | Yes | Natural language query via Claude agent |
+
+**Query parameters:** `intent`, `urgency`, `topic`, `sender`, `min_relevancy`, `status`, `limit` (default 20), `offset`
+
+#### Config
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/v1/config` | Yes | Get current processing config |
+| PUT | `/v1/config` | Yes | Update processing config |
+| GET | `/v1/config/schema` | Yes | JSON schema for config object |
+
+**Config fields:** `ignore_senders`, `ignore_subjects_containing`, `min_relevancy_threshold`, `max_attachment_size_mb`, `enable_ocr`, `enable_transcription`, `enable_pdf_extraction`, `enable_docx_extraction`, `extra_domain_hints`
+
+#### Sources
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/v1/sources` | Yes | List registered forwarding sources |
+| POST | `/v1/sources` | Yes | Register a forwarding source |
+| DELETE | `/v1/sources/{source_id}` | Yes | Remove a source |
+
+---
+
+## Intelligence Record Schema
+
+Each processed email produces a Firestore document in `fsu4-intelligence`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `record_id` | string | UUID — primary key |
+| `message_id` | string | Gmail message ID (idempotency key) |
+| `thread_id` | string | Gmail thread ID |
+| `from_address` | string | Sender email address |
+| `from_name` | string | Sender display name |
+| `subject` | string | Email subject line |
+| `received_at` | timestamp | When email was received |
+| `forwarded_from` | string | Original sender if forwarded |
+| `title` | string | AI-generated title |
+| `summary` | string | AI-generated summary |
+| `topics` | array[string] | Extracted topic tags |
+| `intent` | enum | `informational` · `actionable` · `alert` · `report` · `noise` |
+| `urgency` | enum | `low` · `medium` · `high` · `critical` |
+| `relevancy_score` | float | 0.0–1.0 relevance to Chimera domain |
+| `chimera_domain_tags` | array[string] | Domain-specific tags |
+| `attachments` | array | Attachment metadata + GCS paths |
+| `gcs_raw_prefix` | string | GCS path to raw email artefacts |
+| `gcs_processed_prefix` | string | GCS path to processed record |
+| `status` | enum | `processing` · `processed` · `skipped` · `error` |
+| `processing_error` | string | Error message if status=error |
+| `created_at` | timestamp | Record creation time |
+| `updated_at` | timestamp | Last update time |
+
+---
+
+## GCS Structure
+
+```
+chimera-ops-email-raw/
+  raw/{year}/{month}/{day}/{message_id}/
+    email_metadata.json
+    body.txt
+    body.html
+    attachments/{filename}
+  processed/{record_id}/
+    record.json
+    extracted_texts/{filename}.txt
+    transcripts/{filename}.txt
+  index/
+    daily_manifest_{YYYY-MM-DD}.json
+```
+
+---
+
+## Email Forwarding Setup
+
+1. For each source account, create a forwarding rule to `chimera.data.in@gmail.com`
+   - Gmail: Settings → Forwarding and POP/IMAP → Add forwarding address
+   - Filter by subject keywords relevant to Chimera operations
+2. Register the source via the API:
+```bash
+curl -X POST \
+  -H "X-Chimera-API-Key: YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email_address":"source@example.com","display_name":"Source Name","description":"What this source sends"}' \
+  https://fsu4-950990732577.europe-west2.run.app/v1/sources
+```
+
+---
+
+## GCP Infrastructure — Provisioning Reference
+
+All resources are already provisioned. Commands below are for recreation only.
+
+### APIs
 ```bash
 gcloud services enable \
   run.googleapis.com cloudbuild.googleapis.com containerregistry.googleapis.com \
@@ -86,18 +274,14 @@ for ROLE in roles/secretmanager.secretAccessor roles/datastore.user \
 done
 ```
 
-### Pub/Sub topic
+### Pub/Sub
 ```bash
 gcloud pubsub topics create fsu4-trigger --project=chimera-v4
 
 gcloud pubsub topics add-iam-policy-binding fsu4-trigger \
   --member="serviceAccount:gmail-api-push@system.gserviceaccount.com" \
   --role="roles/pubsub.publisher" --project=chimera-v4
-```
 
-### Pub/Sub push subscription
-Create after first deploy once the Cloud Run URL is known:
-```bash
 gcloud pubsub subscriptions create fsu4-sub \
   --topic=fsu4-trigger \
   --push-endpoint=https://fsu4-950990732577.europe-west2.run.app/v1/ingest/pubsub-push \
@@ -106,138 +290,7 @@ gcloud pubsub subscriptions create fsu4-sub \
 ```
 
 ### Firestore
-Native mode, `europe-west2`. Collections created automatically on first write.
+Native mode, `europe-west2`. All collections created automatically on first write.
 
 ### GCS bucket
-`chimera-ops-email-raw` — `europe-west2`, Standard, uniform access, public access prevented.
-
----
-
-## Integration Guide
-
-### Authentication
-All protected endpoints require the header:
-```
-X-Chimera-API-Key: <value of chimera-api-key secret>
-```
-
-### Base URL
-```
-https://fsu4-950990732577.europe-west2.run.app
-```
-
-### API Endpoints
-
-#### System (no auth required)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Liveness probe — returns `{"status":"ok"}` |
-| GET | `/status` | Operational snapshot including Firestore connectivity |
-| GET | `/version` | Version and build info |
-
-#### Ingest
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/v1/ingest/pubsub-push` | Pub/Sub push receiver (called by GCP, not directly) |
-| POST | `/v1/ingest/manual` | Process a specific Gmail message ID |
-| POST | `/v1/ingest/reprocess/{id}` | Re-run AI tagging on an existing record |
-| GET | `/v1/ingest/queue` | View pending records |
-
-**Manual ingest example:**
-```bash
-curl -X POST \
-  -H "X-Chimera-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"message_id":"GMAIL_MESSAGE_ID"}' \
-  https://fsu4-950990732577.europe-west2.run.app/v1/ingest/manual
-```
-
-#### Registry
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/v1/registry` | Query intelligence records (filterable) |
-| GET | `/v1/registry/{record_id}` | Fetch a single record |
-| GET | `/v1/registry/metrics` | Processing stats |
-| POST | `/v1/registry/agent/query` | AI agent query integration |
-
-**Query example:**
-```bash
-curl -H "X-Chimera-API-Key: YOUR_KEY" \
-  "https://fsu4-950990732577.europe-west2.run.app/v1/registry?limit=10"
-```
-
-#### Config
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/v1/config` | Get current processing config |
-| PUT | `/v1/config` | Update processing config |
-| GET | `/v1/config/schema` | JSON schema for config object |
-
-**Filter out noise (example):**
-```bash
-curl -X PUT \
-  -H "X-Chimera-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"ignore_senders":["noreply@newsletter.com"]}' \
-  https://fsu4-950990732577.europe-west2.run.app/v1/config
-```
-
-#### Sources
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/v1/sources` | List registered forwarding sources |
-| POST | `/v1/sources` | Register a forwarding source |
-| DELETE | `/v1/sources/{source_id}` | Remove a source |
-
-**Register a forwarding source:**
-```bash
-curl -X POST \
-  -H "X-Chimera-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"email_address":"source@example.com","display_name":"Source Name","description":"What this source sends"}' \
-  https://fsu4-950990732577.europe-west2.run.app/v1/sources
-```
-
-### Intelligence Record Schema
-Each processed email produces a Firestore document in `fsu4-intelligence` with:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `title` | string | AI-generated title |
-| `summary` | string | AI-generated summary |
-| `topics` | array | Extracted topic tags |
-| `relevancy_score` | float | 0.0–1.0 relevance to Chimera domain |
-| `intent` | string | Classified intent of the email |
-| `sender` | string | From address |
-| `subject` | string | Original subject line |
-| `received_at` | timestamp | When email was received |
-| `gcs_path` | string | Path to raw artefacts in `chimera-ops-email-raw` |
-
----
-
-## GCS Structure
-
-```
-chimera-ops-email-raw/
-  raw/{year}/{month}/{day}/{message_id}/
-    email_metadata.json
-    body.txt
-    body.html
-    attachments/
-  processed/{record_id}/
-    record.json
-    extracted_texts/
-    transcripts/
-  index/
-    daily_manifest_{date}.json
-```
-
----
-
-## Email Forwarding Setup
-
-For each email account that should feed FSU4:
-1. Set up a forwarding rule based on subject keywords to `chimera.data.in@gmail.com`
-2. Register the source via the `/v1/sources` endpoint (see above)
-
-Gmail forwarding: Settings → See all settings → Forwarding and POP/IMAP → Add a forwarding address → `chimera.data.in@gmail.com`
+`chimera-ops-email-raw` — `europe-west2`, Standard storage, uniform access control, public access prevented.
