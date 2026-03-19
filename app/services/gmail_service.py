@@ -25,7 +25,6 @@ from app.core.secrets import get_gmail_credentials, get_gmail_token
 logger = logging.getLogger(__name__)
 
 GMAIL_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.modify",
 ]
 
