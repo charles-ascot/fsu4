@@ -12,7 +12,7 @@ export default function SourcesPage() {
   const load = () => {
     setLoading(true)
     api.getSources()
-      .then(res => setSources(res?.data ?? []))
+      .then(res => setSources(res?.data?.sources ?? []))
       .finally(() => setLoading(false))
   }
 
