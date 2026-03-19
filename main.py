@@ -13,7 +13,7 @@ from app.core.config import FSU_NAME, FSU_VERSION, API_VERSION
 from app.models.intelligence_record import ChimeraMeta, ChimeraResponse
 from app.routers import ingest, registry
 from app.routers.config import router as config_router, sources_router
-from app.services import gmail_service, firestore_service
+from app.services import gmail_service, firestore_service  # noqa: F401 — firestore_service used in lifespan
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +29,10 @@ async def lifespan(app: FastAPI):
     try:
         watch_result = gmail_service.setup_gmail_watch()
         logger.info("Gmail watch active: %s", watch_result)
+        # Store the starting historyId so the first notification can find its messages
+        history_id = watch_result.get("historyId")
+        if history_id:
+            firestore_service.set_last_history_id(str(history_id))
     except Exception as exc:
         logger.error("Gmail watch setup failed: %s", exc, exc_info=True)
     yield

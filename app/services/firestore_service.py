@@ -161,6 +161,21 @@ def get_pending_records(limit: int = 100) -> list[IntelligenceRecord]:
     return [IntelligenceRecord.from_firestore_dict(d.to_dict()) for d in query.stream()]
 
 
+# ── Gmail watch state ─────────────────────────────────────────────────────────
+
+def get_last_history_id() -> Optional[str]:
+    doc = _db().collection("chimera-fsu-system").document("gmail-watch").get()
+    if doc.exists:
+        return doc.to_dict().get("last_history_id")
+    return None
+
+
+def set_last_history_id(history_id: str) -> None:
+    _db().collection("chimera-fsu-system").document("gmail-watch").set(
+        {"last_history_id": history_id, "updated_at": datetime.utcnow()}
+    )
+
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 def load_config() -> ProcessingConfig:

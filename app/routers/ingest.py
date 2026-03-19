@@ -66,8 +66,18 @@ async def pubsub_push(request: Request):
     if not history_id:
         return
 
+    # Use the previously stored historyId as startHistoryId so we see the
+    # change that triggered this notification (Gmail returns records AFTER startHistoryId)
+    start_history_id = firestore_service.get_last_history_id()
+    if not start_history_id:
+        # First notification — use one before current to capture this change
+        start_history_id = str(int(history_id) - 1)
+
     config = get_current_config()
-    new_messages = gmail_service.list_history(str(history_id))
+    new_messages = gmail_service.list_history(start_history_id)
+
+    # Always advance the cursor regardless of whether we found messages
+    firestore_service.set_last_history_id(str(history_id))
 
     for msg_stub in new_messages:
         message_id = msg_stub.get("id")
