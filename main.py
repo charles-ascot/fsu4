@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import FSU_NAME, FSU_VERSION, API_VERSION
@@ -39,6 +40,14 @@ app = FastAPI(
     version=FSU_VERSION,
     description="Chimera Email Data Collection FSU — transforms inbound emails into structured intelligence records.",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://fsu4.thync.online"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
