@@ -3,7 +3,8 @@
 
 Transforms inbound emails at `chimera.data.in@gmail.com` into structured intelligence records using Gmail API → Pub/Sub → Claude AI → Firestore + GCS.
 
-**Live URL:** `https://fsu4-lssrjnis3q-nw.a.run.app`
+**Live URL:** `https://fsu4-950990732577.europe-west2.run.app`
+**Management UI:** `https://fsu4.thync.online`
 
 ---
 
@@ -99,7 +100,7 @@ Create after first deploy once the Cloud Run URL is known:
 ```bash
 gcloud pubsub subscriptions create fsu4-sub \
   --topic=fsu4-trigger \
-  --push-endpoint=https://fsu4-lssrjnis3q-nw.a.run.app/v1/ingest/pubsub-push \
+  --push-endpoint=https://fsu4-950990732577.europe-west2.run.app/v1/ingest/pubsub-push \
   --ack-deadline=300 \
   --project=chimera-v4
 ```
@@ -122,7 +123,7 @@ X-Chimera-API-Key: <value of chimera-api-key secret>
 
 ### Base URL
 ```
-https://fsu4-lssrjnis3q-nw.a.run.app
+https://fsu4-950990732577.europe-west2.run.app
 ```
 
 ### API Endpoints
@@ -148,7 +149,7 @@ curl -X POST \
   -H "X-Chimera-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"message_id":"GMAIL_MESSAGE_ID"}' \
-  https://fsu4-lssrjnis3q-nw.a.run.app/v1/ingest/manual
+  https://fsu4-950990732577.europe-west2.run.app/v1/ingest/manual
 ```
 
 #### Registry
@@ -162,7 +163,7 @@ curl -X POST \
 **Query example:**
 ```bash
 curl -H "X-Chimera-API-Key: YOUR_KEY" \
-  "https://fsu4-lssrjnis3q-nw.a.run.app/v1/registry?limit=10"
+  "https://fsu4-950990732577.europe-west2.run.app/v1/registry?limit=10"
 ```
 
 #### Config
@@ -178,7 +179,7 @@ curl -X PUT \
   -H "X-Chimera-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"ignore_senders":["noreply@newsletter.com"]}' \
-  https://fsu4-lssrjnis3q-nw.a.run.app/v1/config
+  https://fsu4-950990732577.europe-west2.run.app/v1/config
 ```
 
 #### Sources
@@ -194,7 +195,7 @@ curl -X POST \
   -H "X-Chimera-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"email_address":"source@example.com","display_name":"Source Name","description":"What this source sends"}' \
-  https://fsu4-lssrjnis3q-nw.a.run.app/v1/sources
+  https://fsu4-950990732577.europe-west2.run.app/v1/sources
 ```
 
 ### Intelligence Record Schema
