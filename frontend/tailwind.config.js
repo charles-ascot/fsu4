@@ -4,12 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        surface: '#0f1117',
-        panel: '#161b27',
-        border: '#1e2535',
-        accent: '#3b82f6',
-        'accent-dim': '#1d4ed8',
-        muted: '#6b7280',
+        surface: '#0d1117',
+        panel: 'rgba(20, 25, 45, 0.5)',
+        border: 'rgba(255, 255, 255, 0.1)',
+        accent: '#00D4FF',
+        'accent-dim': '#0099FF',
+        muted: '#888888',
+        cyan: '#00D4FF',
+        purple: '#9D4EDD',
       },
     },
   },

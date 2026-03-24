@@ -1,21 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #0f1117;
-  color: #e5e7eb;
-  font-family: 'Inter', system-ui, sans-serif;
+:root {
+  --bg: #0d1117;
+  --cyan: #00D4FF;
+  --blue: #0099FF;
+  --purple: #9D4EDD;
+  --green: #4ade80;
+  --red: #FF6B6B;
+  --text: #e0e0e0;
+  --text-dim: #888;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
 }
-::-webkit-scrollbar-track {
-  background: #0f1117;
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(157, 78, 221, 0.13) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(0, 212, 255, 0.08) 0%, transparent 45%);
+  pointer-events: none;
+  z-index: 0;
 }
-::-webkit-scrollbar-thumb {
-  background: #1e2535;
-  border-radius: 3px;
+
+.glass-panel {
+  background: rgba(20, 25, 45, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
+
+.gradient-text {
+  background: linear-gradient(135deg, #00D4FF 0%, #0099FF 50%, #9D4EDD 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.col-header {
+  font-family: 'Poppins', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  opacity: 0.65;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }

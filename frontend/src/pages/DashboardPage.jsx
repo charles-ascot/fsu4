@@ -6,10 +6,10 @@ import StatusBadge from '../components/StatusBadge'
 
 function StatCard({ label, value, sub }) {
   return (
-    <div className="bg-panel border border-border rounded-xl p-5">
-      <div className="text-xs text-muted uppercase tracking-wide mb-1">{label}</div>
-      <div className="text-3xl font-bold text-white">{value ?? '—'}</div>
-      {sub && <div className="text-xs text-muted mt-1">{sub}</div>}
+    <div className="glass-panel p-5">
+      <div className="col-header mb-1">{label}</div>
+      <div className="text-3xl font-bold" style={{ color: 'var(--text)' }}>{value ?? '—'}</div>
+      {sub && <div className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>{sub}</div>}
     </div>
   )
 }
@@ -44,12 +44,13 @@ export default function DashboardPage() {
     <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-muted mt-0.5">FSU4 Email Intelligence — {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h1 className="gradient-text text-2xl font-bold">Dashboard</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>FSU4 Email Intelligence · {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-panel border border-border rounded-lg">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+          style={{ background: 'rgba(20,25,45,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <div className={`w-2 h-2 rounded-full ${health?.status === 'ok' ? 'bg-green-400' : 'bg-red-400'}`} />
-          <span className="text-sm text-gray-300">{health?.status === 'ok' ? 'Service healthy' : 'Service error'}</span>
+          <span className="text-sm" style={{ color: 'var(--text)' }}>{health?.status === 'ok' ? 'Service healthy' : 'Service error'}</span>
         </div>
       </div>
 
@@ -61,36 +62,39 @@ export default function DashboardPage() {
       </div>
 
       {Object.keys(stats.by_intent ?? {}).length > 0 && (
-        <div className="bg-panel border border-border rounded-xl p-5 mb-6">
-          <h2 className="text-sm font-semibold text-gray-300 mb-3">Records by Intent</h2>
+        <div className="glass-panel p-5 mb-6">
+          <div className="col-header mb-3">Records by Intent</div>
           <div className="flex flex-wrap gap-2">
             {Object.entries(stats.by_intent).map(([intent, count]) => (
-              <div key={intent} className="flex items-center gap-2 px-3 py-1.5 bg-surface rounded-lg border border-border">
-                <span className="text-sm text-gray-200">{intent}</span>
-                <span className="text-xs text-muted">{count}</span>
+              <div key={intent} className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span className="text-sm" style={{ color: 'var(--text)' }}>{intent}</span>
+                <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{count}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="bg-panel border border-border rounded-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-gray-300">Recent Records</h2>
-          <Link to="/registry" className="text-xs text-accent hover:underline">View all</Link>
+      <div className="glass-panel overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="col-header">Recent Records</div>
+          <Link to="/registry" className="text-xs transition-opacity hover:opacity-80" style={{ color: 'var(--cyan)' }}>View all</Link>
         </div>
         {recent.length === 0 ? (
-          <div className="px-5 py-10 text-center text-muted text-sm">No records yet</div>
+          <div className="px-5 py-10 text-center text-sm" style={{ color: 'var(--text-dim)' }}>No records yet</div>
         ) : (
-          <div className="divide-y divide-border">
+          <div>
             {recent.map(rec => (
-              <Link key={rec.id} to={`/registry/${rec.id}`} className="flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition-colors">
+              <Link key={rec.record_id} to={`/registry/${rec.record_id}`}
+                className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-white/5"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-200 truncate">{rec.title || rec.subject || 'Untitled'}</div>
-                  <div className="text-xs text-muted truncate">{rec.sender}</div>
+                  <div className="text-sm truncate" style={{ color: 'var(--text)' }}>{rec.title || rec.subject || 'Untitled'}</div>
+                  <div className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>{rec.from_address}</div>
                 </div>
                 <StatusBadge value={rec.status} />
-                <div className="text-xs text-muted whitespace-nowrap">
+                <div className="text-xs whitespace-nowrap" style={{ color: 'var(--text-dim)' }}>
                   {rec.received_at ? new Date(rec.received_at).toLocaleDateString('en-GB') : ''}
                 </div>
               </Link>

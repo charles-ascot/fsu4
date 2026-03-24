@@ -15,12 +15,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center">
-      <div className="bg-panel border border-border rounded-2xl p-10 w-full max-w-sm text-center">
+    <div className="relative min-h-screen flex items-center justify-center" style={{ background: '#0d1117' }}>
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at 30% 30%, rgba(157,78,221,0.15) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(0,212,255,0.08) 0%, transparent 50%)',
+        }}
+      />
+      <div className="glass-panel relative z-10 p-10 w-full max-w-sm text-center">
         <div className="text-4xl mb-4">⚡</div>
-        <div className="text-xs font-semibold tracking-widest text-muted uppercase mb-1">Chimera Platform</div>
-        <h1 className="text-2xl font-bold text-white mb-1">FSU4</h1>
-        <p className="text-sm text-muted mb-8">Email Intelligence Service</p>
+        <div className="col-header mb-1">Chimera Platform</div>
+        <h1 className="gradient-text text-3xl font-bold mb-1">FSU4</h1>
+        <p className="text-sm mb-8" style={{ color: 'var(--text-dim)' }}>Email Intelligence Service</p>
 
         <div className="flex justify-center">
           <GoogleLogin
@@ -34,10 +40,10 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <p className="mt-4 text-sm text-red-400">{error}</p>
+          <p className="mt-4 text-sm" style={{ color: 'var(--red)' }}>{error}</p>
         )}
 
-        <p className="mt-6 text-xs text-muted">Restricted to ascotwm.com accounts</p>
+        <p className="mt-6 text-xs" style={{ color: 'var(--text-dim)', opacity: 0.5 }}>Restricted to ascotwm.com accounts</p>
       </div>
     </div>
   )

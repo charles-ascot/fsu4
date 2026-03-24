@@ -42,8 +42,8 @@ export default function RegistryPage() {
     <div className="max-w-6xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Registry</h1>
-          <p className="text-sm text-muted mt-0.5">{total} total records</p>
+          <h1 className="gradient-text text-2xl font-bold">Registry</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>{total} total records</p>
         </div>
       </div>
 
@@ -52,41 +52,47 @@ export default function RegistryPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search title, sender, subject..."
-          className="flex-1 bg-panel border border-border rounded-lg px-4 py-2 text-sm text-gray-200 placeholder-muted outline-none focus:border-accent transition-colors"
+          className="flex-1 rounded-lg px-4 py-2 text-sm outline-none transition-colors"
+          style={{ background: 'rgba(20,25,45,0.6)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text)' }}
+          onFocus={e => e.target.style.borderColor = 'rgba(0,212,255,0.5)'}
+          onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
         />
         <select
           value={intent}
           onChange={e => { setIntent(e.target.value); load(0, e.target.value) }}
-          className="bg-panel border border-border rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-accent"
+          className="rounded-lg px-3 py-2 text-sm outline-none"
+          style={{ background: 'rgba(20,25,45,0.6)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text)' }}
         >
           {INTENTS.map(i => <option key={i} value={i}>{i || 'All intents'}</option>)}
         </select>
-        <button onClick={() => load(0)} className="px-4 py-2 bg-accent hover:bg-accent-dim text-white text-sm rounded-lg transition-colors">
+        <button onClick={() => load(0)}
+          className="px-4 py-2 text-sm rounded-lg font-medium transition-all hover:opacity-90"
+          style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: 'var(--cyan)' }}>
           Refresh
         </button>
       </div>
 
-      <div className="bg-panel border border-border rounded-xl overflow-hidden">
+      <div className="glass-panel overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-xs text-muted uppercase tracking-wide">
-              <th className="text-left px-5 py-3">Title / Subject</th>
-              <th className="text-left px-4 py-3">Sender</th>
-              <th className="text-left px-4 py-3">Intent</th>
-              <th className="text-left px-4 py-3">Relevancy</th>
-              <th className="text-left px-4 py-3">Status</th>
-              <th className="text-left px-4 py-3">Date</th>
+            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <th className="col-header text-left px-5 py-3">Title / Subject</th>
+              <th className="col-header text-left px-4 py-3">Sender</th>
+              <th className="col-header text-left px-4 py-3">Intent</th>
+              <th className="col-header text-left px-4 py-3">Relevancy</th>
+              <th className="col-header text-left px-4 py-3">Status</th>
+              <th className="col-header text-left px-4 py-3">Date</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {loading ? (
               <tr><td colSpan={6} className="py-12 text-center"><LoadingSpinner /></td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} className="py-12 text-center text-muted">No records found</td></tr>
             ) : filtered.map(rec => (
-              <tr key={rec.record_id} className="hover:bg-white/5 transition-colors">
+              <tr key={rec.record_id} className="hover:bg-white/5 transition-colors" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <td className="px-5 py-3">
-                  <Link to={`/registry/${rec.record_id}`} className="text-gray-200 hover:text-accent transition-colors">
+                  <Link to={`/registry/${rec.record_id}`} className="transition-opacity hover:opacity-80" style={{ color: 'var(--text)' }}>
                     <div className="font-medium truncate max-w-xs">{rec.title || rec.subject || 'Untitled'}</div>
                     {rec.chimera_ref && (
                       <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-accent/20 text-accent text-[10px] font-mono rounded">
@@ -96,20 +102,20 @@ export default function RegistryPage() {
                     {rec.summary && <div className="text-xs text-muted truncate max-w-xs">{rec.summary}</div>}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-muted text-xs truncate max-w-[160px]">{rec.from_address}</td>
+                <td className="px-4 py-3 text-xs truncate max-w-[160px]" style={{ color: 'var(--text-dim)' }}>{rec.from_address}</td>
                 <td className="px-4 py-3"><StatusBadge value={rec.intent} /></td>
-                <td className="px-4 py-3 text-gray-300">
+                <td className="px-4 py-3" style={{ color: 'var(--text)' }}>
                   {rec.relevancy_score != null ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
-                        <div className="h-full bg-accent rounded-full" style={{ width: `${rec.relevancy_score * 100}%` }} />
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                        <div className="h-full rounded-full" style={{ width: `${rec.relevancy_score * 100}%`, background: 'var(--cyan)' }} />
                       </div>
-                      <span className="text-xs text-muted">{(rec.relevancy_score * 100).toFixed(0)}%</span>
+                      <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{(rec.relevancy_score * 100).toFixed(0)}%</span>
                     </div>
                   ) : '—'}
                 </td>
                 <td className="px-4 py-3"><StatusBadge value={rec.status} /></td>
-                <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
+                <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--text-dim)' }}>
                   {rec.received_at ? new Date(rec.received_at).toLocaleDateString('en-GB') : '—'}
                 </td>
               </tr>
@@ -118,15 +124,17 @@ export default function RegistryPage() {
         </table>
 
         {total > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-            <span className="text-xs text-muted">Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}</span>
+          <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <span className="text-xs" style={{ color: 'var(--text-dim)' }}>Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}</span>
             <div className="flex gap-2">
               <button disabled={offset === 0} onClick={() => load(offset - PAGE_SIZE)}
-                className="px-3 py-1 text-xs bg-surface border border-border rounded disabled:opacity-40 hover:border-accent transition-colors">
+                className="px-3 py-1 text-xs rounded disabled:opacity-40 transition-colors"
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)' }}>
                 Previous
               </button>
               <button disabled={offset + PAGE_SIZE >= total} onClick={() => load(offset + PAGE_SIZE)}
-                className="px-3 py-1 text-xs bg-surface border border-border rounded disabled:opacity-40 hover:border-accent transition-colors">
+                className="px-3 py-1 text-xs rounded disabled:opacity-40 transition-colors"
+                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)' }}>
                 Next
               </button>
             </div>
