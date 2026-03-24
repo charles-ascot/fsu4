@@ -22,7 +22,7 @@ export default function RegistryPage() {
     api.getRegistry(params)
       .then(res => {
         setRecords(res?.data?.records ?? [])
-        setTotal(res?.data?.total ?? 0)
+        setTotal(res?.data?.count ?? 0)
         setOffset(off)
       })
       .finally(() => setLoading(false))
@@ -84,14 +84,14 @@ export default function RegistryPage() {
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} className="py-12 text-center text-muted">No records found</td></tr>
             ) : filtered.map(rec => (
-              <tr key={rec.id} className="hover:bg-white/5 transition-colors">
+              <tr key={rec.record_id} className="hover:bg-white/5 transition-colors">
                 <td className="px-5 py-3">
-                  <Link to={`/registry/${rec.id}`} className="text-gray-200 hover:text-accent transition-colors">
+                  <Link to={`/registry/${rec.record_id}`} className="text-gray-200 hover:text-accent transition-colors">
                     <div className="font-medium truncate max-w-xs">{rec.title || rec.subject || 'Untitled'}</div>
                     {rec.summary && <div className="text-xs text-muted truncate max-w-xs">{rec.summary}</div>}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-muted text-xs truncate max-w-[160px]">{rec.sender}</td>
+                <td className="px-4 py-3 text-muted text-xs truncate max-w-[160px]">{rec.from_address}</td>
                 <td className="px-4 py-3"><StatusBadge value={rec.intent} /></td>
                 <td className="px-4 py-3 text-gray-300">
                   {rec.relevancy_score != null ? (

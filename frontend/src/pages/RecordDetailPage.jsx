@@ -46,7 +46,7 @@ export default function RecordDetailPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-5 mb-5">
-          <Field label="Sender" value={record.sender} />
+          <Field label="Sender" value={record.from_address} />
           <Field label="Subject" value={record.subject} />
           <Field label="Intent" value={record.intent} />
           <Field label="Received" value={record.received_at ? new Date(record.received_at).toLocaleString('en-GB') : null} />
