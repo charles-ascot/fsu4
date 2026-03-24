@@ -208,6 +208,19 @@ def _process_message(message_id: str, config: ProcessingConfig) -> IntelligenceR
     # 3. Parse
     parsed = gmail_service.parse_gmail_message(raw_message)
 
+    # If the email was forwarded to this inbox, promote the original sender so
+    # all downstream logic (SCN check, Registry, skip filters) sees the true author.
+    # The actual forwarder's address is preserved in forwarded_from on the record.
+    forwarder_address = None
+    if parsed.original_from_address:
+        forwarder_address = parsed.from_address  # e.g. charles.duckitt@ascotwm.com
+        parsed.from_address = parsed.original_from_address
+        parsed.from_name = parsed.original_from_name or parsed.from_name
+        logger.info(
+            "Forward detected — treating sender as %s (forwarded by %s)",
+            parsed.from_address, forwarder_address,
+        )
+
     # Build skeleton record for early Firestore write
     record = IntelligenceRecord(
         message_id=parsed.message_id,
@@ -216,7 +229,7 @@ def _process_message(message_id: str, config: ProcessingConfig) -> IntelligenceR
         from_name=parsed.from_name,
         subject=parsed.subject,
         received_at=parsed.received_at,
-        forwarded_from=parsed.forwarded_from,
+        forwarded_from=forwarder_address or parsed.forwarded_from,
         gmail_labels=parsed.gmail_labels,
         status=RecordStatus.processing,
     )

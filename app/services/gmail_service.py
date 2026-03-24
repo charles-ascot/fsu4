@@ -4,6 +4,7 @@ import base64
 import email
 import json
 import logging
+import re
 from datetime import datetime
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Optional
@@ -137,6 +138,44 @@ def list_history(start_history_id: str) -> list[dict]:
     return messages_added
 
 
+# Matches Gmail ("--- Forwarded message ---"), Outlook ("--- Original Message ---"),
+# and Apple Mail ("Begin forwarded message:") dividers
+_FORWARD_DIVIDER_RE = re.compile(
+    r'(?:[-]{3,}\s*(?:Forwarded message|Original Message)\s*[-]{3,}'
+    r'|Begin forwarded message:)',
+    re.IGNORECASE,
+)
+
+# Matches "From: Display Name <email@example.com>" or "From: email@example.com"
+_FROM_LINE_RE = re.compile(
+    r'^From:\s*(?P<name>[^<\n]*?)\s*'
+    r'(?:<(?P<email1>[\w.+\-]+@[\w.+\-]+\.\w+)>'
+    r'|(?P<email2>[\w.+\-]+@[\w.+\-]+\.\w+))',
+    re.MULTILINE | re.IGNORECASE,
+)
+
+
+def _extract_forwarded_sender(body_text: str) -> tuple[str, str]:
+    """
+    Detect original sender inside a forwarded/forward-auto email body.
+    Looks for a forwarded-message divider, then reads the From: line immediately after.
+    Returns (display_name, email_address) or ("", "") if not found.
+    """
+    if not body_text:
+        return "", ""
+    match = _FORWARD_DIVIDER_RE.search(body_text)
+    if not match:
+        return "", ""
+    # Only scan the 600 chars after the divider to avoid false matches in quoted history
+    snippet = body_text[match.start(): match.start() + 600]
+    from_match = _FROM_LINE_RE.search(snippet)
+    if not from_match:
+        return "", ""
+    email_addr = (from_match.group("email1") or from_match.group("email2") or "").lower().strip()
+    name = (from_match.group("name") or "").strip()
+    return name, email_addr
+
+
 class ParsedEmail:
     def __init__(self):
         self.message_id: str = ""
@@ -146,6 +185,8 @@ class ParsedEmail:
         self.subject: str = ""
         self.received_at: datetime = datetime.utcnow()
         self.forwarded_from: Optional[str] = None
+        self.original_from_address: Optional[str] = None  # original sender in a forwarded email
+        self.original_from_name: Optional[str] = None
         self.gmail_labels: list[str] = []
         self.body_text: str = ""
         self.body_html: str = ""
@@ -186,6 +227,17 @@ def parse_gmail_message(raw_message: dict) -> ParsedEmail:
         parsed.forwarded_from = x_forwarded.lower()
 
     _extract_parts(raw_message.get("payload", {}), parsed)
+
+    # Detect original sender when the email was forwarded to this inbox
+    orig_name, orig_email = _extract_forwarded_sender(parsed.body_text)
+    if orig_email:
+        parsed.original_from_address = orig_email
+        parsed.original_from_name = orig_name
+        logger.debug(
+            "Detected forwarded sender: %s <%s> (envelope from: %s)",
+            orig_name, orig_email, parsed.from_address,
+        )
+
     return parsed
 
 
