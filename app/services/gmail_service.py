@@ -189,6 +189,43 @@ def parse_gmail_message(raw_message: dict) -> ParsedEmail:
     return parsed
 
 
+def send_reply(
+    to_address: str,
+    subject: str,
+    body_html: str,
+    thread_id: str,
+    in_reply_to: str = "",
+) -> str:
+    """
+    Send an email reply via the Gmail API.
+    Returns the sent Gmail message ID.
+    """
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    msg = MIMEMultipart("alternative")
+    msg["To"] = to_address
+    msg["From"] = GMAIL_ADDRESS
+    msg["Subject"] = subject
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+        msg["References"] = in_reply_to
+
+    msg.attach(MIMEText(body_html, "html", "utf-8"))
+
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
+
+    service = _build_gmail_service()
+    result = (
+        service.users()
+        .messages()
+        .send(userId="me", body={"raw": raw, "threadId": thread_id})
+        .execute()
+    )
+    logger.info("Reply sent to %s (thread=%s) message_id=%s", to_address, thread_id, result.get("id"))
+    return result.get("id", "")
+
+
 def _extract_parts(payload: dict, parsed: ParsedEmail) -> None:
     """Recursively extract body text, HTML, and attachments from MIME parts."""
     mime_type = payload.get("mimeType", "")

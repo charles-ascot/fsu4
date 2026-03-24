@@ -28,6 +28,7 @@ from app.services import (
 )
 from app.routers.config import get_current_config
 from app.routers.registry import require_api_key
+from app.services import scn_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -327,6 +328,10 @@ def _process_message(message_id: str, config: ProcessingConfig) -> IntelligenceR
         logger.error("AI tagging failed for message %s: %s", message_id, exc, exc_info=True)
         record = ai_service.fallback_tag_email(record)
         record.processing_error = str(exc)
+
+    # Mark email processing — classify and send appropriate automated reply
+    if parsed.from_address.lower() == scn_service.MARK_EMAIL:
+        scn_service.process_mark_email(record, parsed, body_for_ai)
 
     # Apply relevancy threshold
     if (

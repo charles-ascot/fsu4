@@ -161,6 +161,36 @@ def get_pending_records(limit: int = 100) -> list[IntelligenceRecord]:
     return [IntelligenceRecord.from_firestore_dict(d.to_dict()) for d in query.stream()]
 
 
+# ── SCN (Strategy Change Notice) ──────────────────────────────────────────────
+
+def get_next_reference(prefix: str) -> str:
+    """
+    Generate the next reference for a given prefix using an atomic daily counter.
+    Format: {PREFIX}-YYYYMMDD-001
+    Examples: SCN-20260323-001, SDR-20260323-001
+    """
+    date_str = datetime.utcnow().strftime("%Y%m%d")
+    counter_ref = _db().collection("chimera-fsu-system").document(
+        f"{prefix.lower()}-counter-{date_str}"
+    )
+
+    @firestore.transactional
+    def _increment(transaction, ref):
+        snapshot = ref.get(transaction=transaction)
+        seq = ((snapshot.to_dict() or {}).get("seq", 0)) + 1
+        transaction.set(ref, {"seq": seq, "date": date_str})
+        return seq
+
+    transaction = _db().transaction()
+    seq = _increment(transaction, counter_ref)
+    return f"{prefix.upper()}-{date_str}-{seq:03d}"
+
+
+def store_mark_record(collection: str, doc_id: str, data: dict) -> None:
+    """Store a Mark-related process record (SCN, SDR, etc.) to Firestore."""
+    _db().collection(collection).document(doc_id).set(data)
+
+
 # ── Gmail watch state ─────────────────────────────────────────────────────────
 
 def get_last_history_id() -> Optional[str]:
