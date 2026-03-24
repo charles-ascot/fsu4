@@ -92,6 +92,9 @@ class IntelligenceRecord(BaseModel):
     # Attachments
     attachments: list[AttachmentRecord] = Field(default_factory=list)
 
+    # Chimera reference (SCN-YYYYMMDD-SEQ / SDR-YYYYMMDD-SEQ)
+    chimera_ref: Optional[str] = None
+
     # Processing metadata
     processing_error: Optional[str] = None
     ai_model_used: Optional[str] = None

@@ -191,6 +191,35 @@ def store_mark_record(collection: str, doc_id: str, data: dict) -> None:
     _db().collection(collection).document(doc_id).set(data)
 
 
+def get_action_items(limit: int = 100) -> list[dict]:
+    """
+    Return pending action items from both SCN and SDR collections,
+    merged and sorted by created_at descending.
+    """
+    items = []
+
+    for collection in ("chimera-scn-records", "chimera-sdr-records"):
+        try:
+            docs = (
+                _db().collection(collection)
+                .order_by("created_at", direction=firestore.Query.DESCENDING)
+                .limit(limit)
+                .stream()
+            )
+            for doc in docs:
+                data = doc.to_dict()
+                # Normalise created_at to isoformat string
+                created = data.get("created_at")
+                if hasattr(created, "isoformat"):
+                    data["created_at"] = created.isoformat()
+                items.append(data)
+        except Exception:
+            pass  # collection may not exist yet
+
+    items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return items[:limit]
+
+
 # ── Gmail watch state ─────────────────────────────────────────────────────────
 
 def get_last_history_id() -> Optional[str]:

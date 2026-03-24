@@ -171,6 +171,7 @@ def _process_strategy_instruction(
             "asana_task_created": False,
         })
 
+        record.chimera_ref = scn_ref
         record.action_items = list(set(record.action_items + [f"SCN raised: {scn_ref}"]))
         logger.info("SCN complete: %s → %s (self_notes=%d)", parsed.message_id, scn_ref, len(self_notes))
         return scn_ref
@@ -213,6 +214,7 @@ def _process_strategy_development(
             "reply_sent": True,
         })
 
+        record.chimera_ref = sdr_ref
         record.action_items = list(set(record.action_items + [f"SDR raised: {sdr_ref}"]))
         logger.info("SDR complete: %s → %s", parsed.message_id, sdr_ref)
         return sdr_ref

@@ -41,7 +41,14 @@ export default function RecordDetailPage() {
 
       <div className="bg-panel border border-border rounded-xl p-6 mb-4">
         <div className="flex items-start justify-between gap-4 mb-5">
-          <h1 className="text-xl font-bold text-white">{record.title || record.subject || 'Untitled'}</h1>
+          <div>
+            <h1 className="text-xl font-bold text-white">{record.title || record.subject || 'Untitled'}</h1>
+            {record.chimera_ref && (
+              <span className="inline-block mt-1 px-2 py-0.5 bg-accent/20 text-accent text-xs font-mono rounded">
+                {record.chimera_ref}
+              </span>
+            )}
+          </div>
           <StatusBadge value={record.status} />
         </div>
 

@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import FSU_NAME, FSU_VERSION, API_VERSION
 from app.models.intelligence_record import ChimeraMeta, ChimeraResponse
 from app.routers import ingest, registry
+from app.routers.actions import router as actions_router
 from app.routers.config import router as config_router, sources_router
 from app.services import gmail_service, firestore_service  # noqa: F401 — firestore_service used in lifespan
 
@@ -131,5 +132,6 @@ async def version():
 
 app.include_router(ingest.router, prefix="/v1/ingest", tags=["ingest"])
 app.include_router(registry.router, prefix="/v1/registry", tags=["registry"])
+app.include_router(actions_router, prefix="/v1/actions", tags=["actions"])
 app.include_router(config_router, prefix="/v1/config", tags=["config"])
 app.include_router(sources_router, prefix="/v1/sources", tags=["sources"])

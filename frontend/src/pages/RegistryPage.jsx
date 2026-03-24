@@ -88,6 +88,11 @@ export default function RegistryPage() {
                 <td className="px-5 py-3">
                   <Link to={`/registry/${rec.record_id}`} className="text-gray-200 hover:text-accent transition-colors">
                     <div className="font-medium truncate max-w-xs">{rec.title || rec.subject || 'Untitled'}</div>
+                    {rec.chimera_ref && (
+                      <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-accent/20 text-accent text-[10px] font-mono rounded">
+                        {rec.chimera_ref}
+                      </span>
+                    )}
                     {rec.summary && <div className="text-xs text-muted truncate max-w-xs">{rec.summary}</div>}
                   </Link>
                 </td>
