@@ -294,3 +294,12 @@ Native mode, `europe-west2`. All collections created automatically on first writ
 
 ### GCS bucket
 `chimera-ops-email-raw` — `europe-west2`, Standard storage, uniform access control, public access prevented.
+
+
+## Changelog
+
+### 2026-03-30 — Domain migration prep
+- Replaced hardcoded `thync.online` domain references with environment variables
+- `ALLOWED_ORIGINS` env var (Cloud Run) now controls CORS allowed origins — set as comma-separated list, e.g. `https://service.newdomain.com,https://service.newdomain.com`
+- Default falls back to `http://localhost:5173` for local development
+- See `domain-migration-register.md` at the root of /Users/charles/Projects for the complete list of Cloud Run env vars to set per service

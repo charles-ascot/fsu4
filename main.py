@@ -5,6 +5,8 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -47,9 +49,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://fsu4.thync.online"],
+    allow_origins=[o.strip() for o in _allowed_origins.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
