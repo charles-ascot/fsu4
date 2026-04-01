@@ -55,13 +55,14 @@ chimera.data.in@gmail.com
 **Processing pipeline per email:**
 1. Pub/Sub push → decode historyId → Gmail History API → message IDs
 2. Fetch full message from Gmail API
-3. Parse headers, body text/HTML, attachments
+3. Parse headers, body text/HTML, attachments; detect original sender if forwarded
 4. Skip checks (ignore_senders, ignore_subjects)
 5. Store raw artefacts to GCS
 6. Extract text from attachments (PDF, DOCX, images via OCR, audio via STT)
-7. AI tagging via Claude — title, summary, topics, intent, urgency, relevancy_score
-8. Store processed record to GCS
-9. Write intelligence record to Firestore
+7. AI tagging via Claude — title, summary, topics, entities, intent, urgency, sentiment, relevancy_score
+8. If sender is `mark.insley@ascotwm.com` → classify email type → SCN/SDR process or simple acknowledgement
+9. Store processed record to GCS
+10. Write intelligence record to Firestore
 
 ---
 
@@ -76,6 +77,8 @@ chimera.data.in@gmail.com
 | GCS bucket | `chimera-ops-email-raw` |
 | Firestore collection | `fsu4-intelligence` |
 | Firestore sources collection | `fsu4-sources` |
+| Firestore SCN records | `chimera-scn-records` |
+| Firestore SDR records | `chimera-sdr-records` |
 | Firestore config doc | `chimera-fsu-config/fsu4-config` |
 | Firestore system doc | `chimera-fsu-system/gmail-watch` |
 | Pub/Sub topic | `fsu4-trigger` |
@@ -154,12 +157,12 @@ https://fsu4-950990732577.europe-west2.run.app
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/v1/registry` | Yes | Query records — filterable by intent, urgency, sender, topic, relevancy |
+| GET | `/v1/registry` | Yes | Query records — filterable by intent, urgency, sender, topic, domain_tag, relevancy |
 | GET | `/v1/registry/{record_id}` | Yes | Fetch a single record |
 | GET | `/v1/registry/metrics` | Yes | Processing statistics |
 | POST | `/v1/registry/agent/query` | Yes | Natural language query via Claude agent |
 
-**Query parameters:** `intent`, `urgency`, `topic`, `sender`, `min_relevancy`, `status`, `limit` (default 20), `offset`
+**Query parameters:** `intent`, `urgency`, `topic`, `domain_tag`, `sender`, `min_relevancy`, `status`, `limit` (default 50, max 200), `offset`
 
 #### Config
 
@@ -169,7 +172,7 @@ https://fsu4-950990732577.europe-west2.run.app
 | PUT | `/v1/config` | Yes | Update processing config |
 | GET | `/v1/config/schema` | Yes | JSON schema for config object |
 
-**Config fields:** `ignore_senders`, `ignore_subjects_containing`, `min_relevancy_threshold`, `max_attachment_size_mb`, `enable_ocr`, `enable_transcription`, `enable_pdf_extraction`, `enable_docx_extraction`, `extra_domain_hints`
+**Config fields:** `ignore_senders`, `ignore_subjects_containing`, `min_relevancy_threshold`, `max_attachment_size_mb`, `enable_ocr`, `enable_transcription`, `enable_pdf_extraction`, `enable_docx_extraction`, `cloud_run_timeout_seconds`, `gmail_watch_expiry_buffer_hours`, `extra_domain_hints`
 
 #### Sources
 
@@ -178,6 +181,15 @@ https://fsu4-950990732577.europe-west2.run.app
 | GET | `/v1/sources` | Yes | List registered forwarding sources |
 | POST | `/v1/sources` | Yes | Register a forwarding source |
 | DELETE | `/v1/sources/{source_id}` | Yes | Remove a source |
+
+#### Actions
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/v1/actions` | Yes | List all pending SCN and SDR action items, newest first |
+| GET | `/v1/actions/{ref}` | Yes | Fetch a single action item by reference (e.g. `SCN-20260323-001`) |
+
+**Query parameters:** `limit` (default 50, max 200)
 
 ---
 
@@ -195,18 +207,27 @@ Each processed email produces a Firestore document in `fsu4-intelligence`:
 | `subject` | string | Email subject line |
 | `received_at` | timestamp | When email was received |
 | `forwarded_from` | string | Original sender if forwarded |
-| `title` | string | AI-generated title |
+| `gmail_labels` | array[string] | Gmail labels on the message |
+| `title` | string | AI-generated title (max 80 chars) |
 | `summary` | string | AI-generated summary |
 | `topics` | array[string] | Extracted topic tags |
-| `intent` | enum | `informational` · `actionable` · `alert` · `report` · `noise` |
+| `entities` | object | Extracted entities — `people`, `organisations`, `race_venues`, `horse_names`, `monetary_values` |
+| `intent` | enum | `informational` · `action_required` · `data_payload` · `alert` · `report` |
 | `urgency` | enum | `low` · `medium` · `high` · `critical` |
+| `sentiment` | enum | `neutral` · `positive` · `negative` |
 | `relevancy_score` | float | 0.0–1.0 relevance to Chimera domain |
+| `relevancy_reasoning` | string | AI explanation of relevancy score |
 | `chimera_domain_tags` | array[string] | Domain-specific tags |
+| `action_items` | array[string] | Action items extracted from the email |
+| `contains_pii` | bool | Whether PII was detected |
+| `chimera_ref` | string | SCN or SDR reference if raised (e.g. `SCN-20260323-001`) |
 | `attachments` | array | Attachment metadata + GCS paths |
 | `gcs_raw_prefix` | string | GCS path to raw email artefacts |
 | `gcs_processed_prefix` | string | GCS path to processed record |
-| `status` | enum | `processing` · `processed` · `skipped` · `error` |
-| `processing_error` | string | Error message if status=error |
+| `status` | enum | `pending` · `processing` · `complete` · `failed` · `skipped` |
+| `processing_error` | string | Error message if status=failed |
+| `ai_model_used` | string | Claude model used for tagging |
+| `processing_time_ms` | int | End-to-end processing duration |
 | `created_at` | timestamp | Record creation time |
 | `updated_at` | timestamp | Last update time |
 
@@ -228,6 +249,47 @@ chimera-ops-email-raw/
   index/
     daily_manifest_{YYYY-MM-DD}.json
 ```
+
+---
+
+## Mark Insley SCN/SDR Workflow
+
+Emails from `mark.insley@ascotwm.com` trigger an additional classification and automated response workflow on top of standard AI tagging.
+
+### Email Classification
+
+Claude classifies each Mark email into one of four types:
+
+| Type | Description |
+|------|-------------|
+| `strategy_instruction` | Specific parameter change or direct instruction for the live trading engine (odds bands, stakes, rule overrides). Triggers **SCN process**. |
+| `strategy_development` | Exploratory idea, test/backtest request, or new rule proposal needing research before going live. Triggers **SDR process**. |
+| `strategy_discussion` | Thinking out loud, sharing analysis/research, reflecting on performance. Triggers simple acknowledgement. |
+| `general_correspondence` | Brief conversational message with no strategy content. Triggers simple acknowledgement. |
+
+### Strategy Change Notice (SCN)
+
+A `strategy_instruction` email triggers the full SCN process:
+
+1. A sequential reference is generated: `SCN-YYYYMMDD-NNN`
+2. A 5-step formal reply is sent to Mark confirming receipt, reference, no-changes-yet, sign-off required, and any self-commitments extracted from the email
+3. A record is written to `chimera-scn-records` in Firestore
+4. `chimera_ref` on the intelligence record is set to the SCN reference
+5. The SCN item appears in `/v1/actions` until resolved
+
+### Strategy Development Request (SDR)
+
+A `strategy_development` email triggers the SDR process:
+
+1. A sequential reference is generated: `SDR-YYYYMMDD-NNN`
+2. A 3-step reply is sent to Mark confirming receipt, reference, and that it is queued for development
+3. A record is written to `chimera-sdr-records` in Firestore
+4. `chimera_ref` on the intelligence record is set to the SDR reference
+5. The SDR item appears in `/v1/actions` until resolved
+
+### Self-Note Extraction
+
+For both SCN and SDR emails, the pipeline extracts self-directed commitments from Mark's message body (phrases beginning with "I will have to", "I need to", "I should", etc.) and includes them in the reply and the Firestore record under `self_notes`.
 
 ---
 
