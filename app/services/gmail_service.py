@@ -227,6 +227,7 @@ def parse_gmail_message(raw_message: dict) -> ParsedEmail:
         parsed.forwarded_from = x_forwarded.lower()
 
     _extract_parts(raw_message.get("payload", {}), parsed)
+    _fetch_attachment_data(raw_message["id"], parsed)
 
     # Detect original sender when the email was forwarded to this inbox
     orig_name, orig_email = _extract_forwarded_sender(parsed.body_text)
@@ -289,13 +290,26 @@ def _extract_parts(payload: dict, parsed: ParsedEmail) -> None:
             _extract_parts(part, parsed)
         return
 
+    filename = payload.get("filename", "")
     data = body.get("data", "")
+
     if not data:
+        # Large attachments: Gmail omits inline data and uses attachmentId instead
+        attachment_id = body.get("attachmentId", "")
+        if filename and attachment_id:
+            parsed.attachments.append(
+                {
+                    "filename": filename,
+                    "content_type": mime_type,
+                    "data": None,           # fetched later via _fetch_attachment_data
+                    "_attachment_id": attachment_id,
+                    "size": body.get("size", 0),
+                }
+            )
         return
 
     decoded = base64.urlsafe_b64decode(data + "==")
 
-    filename = payload.get("filename", "")
     if filename:
         parsed.attachments.append(
             {
@@ -311,3 +325,38 @@ def _extract_parts(payload: dict, parsed: ParsedEmail) -> None:
         parsed.body_text = decoded.decode("utf-8", errors="replace")
     elif mime_type == "text/html":
         parsed.body_html = decoded.decode("utf-8", errors="replace")
+
+
+def _fetch_attachment_data(message_id: str, parsed: ParsedEmail) -> None:
+    """
+    Fetch bytes for any attachment stubs that have an _attachment_id field.
+    Gmail returns large attachment data via a separate attachments.get() call.
+    """
+    stubs = [a for a in parsed.attachments if a.get("_attachment_id")]
+    if not stubs:
+        return
+
+    service = _build_gmail_service()
+    for att in stubs:
+        att_id = att.pop("_attachment_id")
+        try:
+            result = (
+                service.users()
+                .messages()
+                .attachments()
+                .get(userId="me", messageId=message_id, id=att_id)
+                .execute()
+            )
+            raw = result.get("data", "")
+            att["data"] = base64.urlsafe_b64decode(raw + "==")
+            att["size"] = len(att["data"])
+            logger.info(
+                "Fetched attachment %s (%d bytes) for message %s",
+                att["filename"], att["size"], message_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch attachment %s for message %s: %s",
+                att["filename"], message_id, exc,
+            )
+            att["data"] = b""

@@ -280,10 +280,13 @@ def _process_message(message_id: str, config: ProcessingConfig) -> IntelligenceR
     max_bytes = config.max_attachment_size_mb * 1024 * 1024
 
     for att in parsed.attachments:
-        att_data: bytes = att["data"]
+        att_data: bytes = att.get("data") or b""
         att_filename: str = att["filename"]
         att_content_type: str = att["content_type"]
         att_size: int = att["size"]
+
+        if not att_data:
+            logger.warning("Attachment %s has no data — skipping extraction", att_filename)
 
         if att_size > max_bytes:
             logger.warning(
@@ -309,7 +312,7 @@ def _process_message(message_id: str, config: ProcessingConfig) -> IntelligenceR
 
         extracted_text: Optional[str] = None
 
-        if att_size <= max_bytes:
+        if att_data and att_size <= max_bytes:
             extracted_text = _extract_attachment_text(
                 data=att_data,
                 filename=att_filename,
