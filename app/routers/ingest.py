@@ -158,26 +158,31 @@ async def reprocess(
 
 @router.post("/reingest-all")
 async def reingest_all(
+    payload: dict = {},
     _: None = Depends(require_api_key),
 ):
     """
-    Re-fetch every existing record from Gmail and reprocess from scratch.
-    Deletes the old Firestore record first so idempotency doesn't block it.
-    Use this after fixing parsing bugs to refresh all stored intelligence.
+    Re-fetch existing records from Gmail and reprocess from scratch.
+    Use after fixing parsing bugs to refresh stored intelligence.
+
+    Optional payload fields:
+      batch_size  int   Max records to process per call (default 10)
+      offset      int   Skip first N records (for pagination across calls)
     """
     import time as _time
     start = _time.monotonic()
     config = get_current_config()
 
-    # Collect all records (complete + skipped — anything worth retrying)
-    all_records = firestore_service.query_records(limit=500)
+    batch_size = int(payload.get("batch_size", 10))
+    offset = int(payload.get("offset", 0))
+
+    all_records = firestore_service.query_records(limit=batch_size, offset=offset)
     total = len(all_records)
     succeeded = 0
     failed = 0
 
     for rec in all_records:
         try:
-            # Clear idempotency so _process_message will re-run
             firestore_service.delete_record(rec.record_id)
             _process_message(rec.message_id, config)
             succeeded += 1
@@ -186,12 +191,21 @@ async def reingest_all(
             failed += 1
 
     elapsed = int((_time.monotonic() - start) * 1000)
-    logger.info("Reingest complete — %d/%d succeeded in %dms", succeeded, total, elapsed)
+    remaining = max(0, firestore_service.count_records() - offset - succeeded)
+    logger.info("Reingest batch complete — %d/%d succeeded, ~%d remaining", succeeded, total, remaining)
 
     return ChimeraResponse(
         request_id="reingest-all",
         status="success",
-        data={"total": total, "succeeded": succeeded, "failed": failed},
+        data={
+            "batch_size": batch_size,
+            "offset": offset,
+            "total_in_batch": total,
+            "succeeded": succeeded,
+            "failed": failed,
+            "next_offset": offset + total,
+            "remaining": remaining,
+        },
         meta=ChimeraMeta(processing_time_ms=elapsed),
     )
 

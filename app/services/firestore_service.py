@@ -55,6 +55,10 @@ def delete_record(record_id: str) -> None:
     _records().document(record_id).delete()
 
 
+def count_records() -> int:
+    return sum(1 for _ in _records().stream())
+
+
 def get_record_by_message_id(message_id: str) -> Optional[IntelligenceRecord]:
     query = _records().where("message_id", "==", message_id).limit(1).stream()
     for doc in query:
