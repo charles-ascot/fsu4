@@ -285,6 +285,14 @@ def _extract_parts(payload: dict, parsed: ParsedEmail) -> None:
     body = payload.get("body", {})
     parts = payload.get("parts", [])
 
+    # message/rfc822 = a forwarded email attached as a full message.
+    # Recurse into its nested payload so we extract the original body text.
+    if mime_type == "message/rfc822":
+        if parts:
+            for part in parts:
+                _extract_parts(part, parsed)
+        return
+
     if parts:
         for part in parts:
             _extract_parts(part, parsed)
@@ -321,10 +329,14 @@ def _extract_parts(payload: dict, parsed: ParsedEmail) -> None:
         )
         return
 
+    # Accumulate body text — multiple text/plain parts can appear in forwarded emails
+    # (outer forwarding note + inner original content). Concatenate all of them.
     if mime_type == "text/plain":
-        parsed.body_text = decoded.decode("utf-8", errors="replace")
+        chunk = decoded.decode("utf-8", errors="replace")
+        parsed.body_text = (parsed.body_text + "\n\n" + chunk).strip() if parsed.body_text else chunk
     elif mime_type == "text/html":
-        parsed.body_html = decoded.decode("utf-8", errors="replace")
+        chunk = decoded.decode("utf-8", errors="replace")
+        parsed.body_html = (parsed.body_html + "\n" + chunk).strip() if parsed.body_html else chunk
 
 
 def _fetch_attachment_data(message_id: str, parsed: ParsedEmail) -> None:
