@@ -51,6 +51,10 @@ def message_already_processed(message_id: str) -> bool:
     return any(True for _ in query)
 
 
+def delete_record(record_id: str) -> None:
+    _records().document(record_id).delete()
+
+
 def get_record_by_message_id(message_id: str) -> Optional[IntelligenceRecord]:
     query = _records().where("message_id", "==", message_id).limit(1).stream()
     for doc in query:

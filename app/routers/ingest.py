@@ -156,6 +156,46 @@ async def reprocess(
     )
 
 
+@router.post("/reingest-all")
+async def reingest_all(
+    _: None = Depends(require_api_key),
+):
+    """
+    Re-fetch every existing record from Gmail and reprocess from scratch.
+    Deletes the old Firestore record first so idempotency doesn't block it.
+    Use this after fixing parsing bugs to refresh all stored intelligence.
+    """
+    import time as _time
+    start = _time.monotonic()
+    config = get_current_config()
+
+    # Collect all records (complete + skipped — anything worth retrying)
+    all_records = firestore_service.query_records(limit=500)
+    total = len(all_records)
+    succeeded = 0
+    failed = 0
+
+    for rec in all_records:
+        try:
+            # Clear idempotency so _process_message will re-run
+            firestore_service.delete_record(rec.record_id)
+            _process_message(rec.message_id, config)
+            succeeded += 1
+        except Exception as exc:
+            logger.error("Reingest failed for message %s: %s", rec.message_id, exc, exc_info=True)
+            failed += 1
+
+    elapsed = int((_time.monotonic() - start) * 1000)
+    logger.info("Reingest complete — %d/%d succeeded in %dms", succeeded, total, elapsed)
+
+    return ChimeraResponse(
+        request_id="reingest-all",
+        status="success",
+        data={"total": total, "succeeded": succeeded, "failed": failed},
+        meta=ChimeraMeta(processing_time_ms=elapsed),
+    )
+
+
 @router.get("/queue")
 async def get_queue(_: None = Depends(require_api_key)):
     """View records currently in pending status."""
